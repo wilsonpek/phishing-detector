@@ -1,9 +1,9 @@
 # phishing_detector.py
-
 import re
 import socket
 import ipaddress
 import whois
+import datetime
 from urllib.parse import urlparse
 
 def contains_ip(url):
@@ -29,7 +29,7 @@ def domain_age(domain):
         return None
 
 def check_url(url):
-    """Check URL for phishing indicators and return results."""
+    """Check URL for phishing indicators and return a dictionary of results."""
     results = {}
 
     # IP address check
