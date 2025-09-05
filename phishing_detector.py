@@ -1,59 +1,91 @@
-# phishing_detector.py
-import re
-import socket
 import ipaddress
+import socket
+import ssl
 import whois
-import datetime
+import requests
 from urllib.parse import urlparse
+from datetime import datetime
 
-def contains_ip(url):
-    """Check if URL contains an IP address."""
-    try:
-        hostname = urlparse(url).netloc
-        ipaddress.ip_address(hostname)
-        return True
-    except ValueError:
-        return False
-
-def domain_age(domain):
-    """Return the age of the domain in years."""
-    try:
-        w = whois.whois(domain)
-        if w.creation_date:
-            creation_date = w.creation_date
-            if isinstance(creation_date, list):
-                creation_date = creation_date[0]
-            age = (datetime.datetime.now() - creation_date).days / 365
-            return age
-    except:
-        return None
+# Suspicious words commonly used in phishing
+SUSPICIOUS_WORDS = ['login', 'secure', 'account', 'verify', 'update', 'bank', 'confirm']
 
 def check_url(url):
-    """Check URL for phishing indicators and return a dictionary of results."""
-    results = {}
+    result = {}
+    result['URL'] = url
 
-    # IP address check
-    results["Contains IP Address"] = "Yes" if contains_ip(url) else "No"
+    # Normalize URL
+    url = url.strip().lower()
+    parsed = urlparse(url)
 
-    # @ symbol
-    results["Contains @"] = "Yes" if "@" in url else "No"
+    # Contains IP Address
+    try:
+        ipaddress.ip_address(parsed.hostname)
+        result['Contains IP Address'] = 'Yes'
+    except ValueError:
+        result['Contains IP Address'] = 'No'
 
-    # Hyphen in domain
-    domain = urlparse(url).netloc
-    results["Contains Hyphen"] = "Yes" if "-" in domain else "No"
+    # Contains @ symbol
+    result['Contains @'] = 'Yes' if '@' in url else 'No'
 
-    # HTTPS check
-    results["Missing HTTPS"] = "Yes" if not url.startswith("https://") else "No"
+    # Contains hyphen
+    result['Contains Hyphen'] = 'Yes' if '-' in parsed.hostname else 'No'
 
-    # Mailto check
-    results["Contains mailto"] = "Yes" if "mailto:" in url else "No"
+    # HTTPS
+    result['HTTPS'] = 'Yes' if parsed.scheme == 'https' else 'No'
+
+    # mailto
+    result['Contains mailto'] = 'Yes' if 'mailto:' in url else 'No'
+
+    # Subdomain count
+    result['Subdomain Count'] = str(parsed.hostname.count('.') - 1)  # Exclude main domain + TLD
+
+    # Suspicious words
+    result['Suspicious Words'] = ', '.join([w for w in SUSPICIOUS_WORDS if w in url]) or 'None'
+
+    # URL length
+    result['URL Length'] = str(len(url))
 
     # Domain age
-    age = domain_age(domain)
-    results["Domain Age < 1 year"] = "Yes" if age is not None and age < 1 else "No"
+    try:
+        domain_info = whois.whois(parsed.hostname)
+        creation_date = domain_info.creation_date
+        if isinstance(creation_date, list):
+            creation_date = creation_date[0]
+        if creation_date:
+            age_days = (datetime.now() - creation_date).days
+            result['Domain Age (days)'] = str(age_days)
+        else:
+            result['Domain Age (days)'] = 'Unknown'
+    except:
+        result['Domain Age (days)'] = 'Unknown'
 
-    # Overall Safe/Suspicious
-    results["Safe/Suspicious"] = "Suspicious" if "Yes" in results.values() else "Safe"
+    # URL Reachable
+    try:
+        resp = requests.get(url, timeout=5, allow_redirects=True)
+        if resp.status_code == 200:
+            result['URL Reachable'] = 'Yes'
+        else:
+            result['URL Reachable'] = 'No'
+    except:
+        result['URL Reachable'] = 'No'
 
-    return results
+    # SSL Certificate
+    ssl_status = 'No'
+    if parsed.scheme == 'https':
+        try:
+            context = ssl.create_default_context()
+            with socket.create_connection((parsed.hostname, 443), timeout=5) as sock:
+                with context.wrap_socket(sock, server_hostname=parsed.hostname) as ssock:
+                    cert = ssock.getpeercert()
+                    ssl_status = 'Yes'
+        except:
+            ssl_status = 'No'
+    result['Valid SSL'] = ssl_status
+
+    # Determine Safe / Suspicious
+    critical_flags = ['Contains IP Address', 'Contains @', 'Contains Hyphen', 'HTTPS', 'URL Reachable', 'Valid SSL']
+    suspicious = any(result[flag] == 'Yes' or result[flag] == 'No' for flag in critical_flags if flag in ['Contains IP Address','Contains @','Contains Hyphen'] or flag in ['HTTPS','URL Reachable','Valid SSL'])
+    result['Overall'] = 'Suspicious' if suspicious else 'Safe'
+
+    return result
 
