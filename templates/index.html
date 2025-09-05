@@ -2,28 +2,67 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Phishing Detector</title>
+    <!-- Bootstrap 5 CSS CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-<body>
-    <h1>Phishing URL Detector</h1>
-    <form method="POST">
-        <textarea name="urls" rows="5" cols="60" placeholder="Enter URLs, one per line or comma-separated">{{ urls_input }}</textarea><br><br>
-        <button type="submit">Scan</button>
-    </form>
+<body class="bg-light">
+
+<div class="container my-5">
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h1 class="card-title text-center mb-4">Phishing URL Detector</h1>
+
+            <div class="alert alert-info">
+                <h5>Instructions:</h5>
+                <ul class="mb-0">
+                    <li>Enter one or more URLs to scan for phishing indicators.</li>
+                    <li>Multiple URLs can be separated <strong>by line</strong> (one per line) or <strong>by commas</strong>.</li>
+                </ul>
+            </div>
+
+            <form method="POST">
+                <div class="mb-3">
+                    <textarea name="urls" rows="6" class="form-control" placeholder="Enter URLs here" required>{{ urls_input }}</textarea>
+                </div>
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-primary btn-lg">Scan</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     {% if results %}
-        <h2>Results:</h2>
-        {% for result in results %}
-            <h3>{{ result['URL'] }}</h3>
-            <ul>
-                {% for key, value in result.items() %}
-                    {% if key != 'URL' %}
-                        <li><strong>{{ key }}:</strong> {{ value }}</li>
-                    {% endif %}
-                {% endfor %}
-            </ul>
-        {% endfor %}
+        <div class="mt-5">
+            <h2 class="mb-3">Scan Results:</h2>
+            {% for result in results %}
+                <div class="card mb-3 shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ result['URL'] }}</h5>
+                        <ul class="list-group list-group-flush">
+                            {% for key, value in result.items() %}
+                                {% if key != 'URL' %}
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        {{ key }}
+                                        {% if value == 'Suspicious' or value == 'Yes' %}
+                                            <span class="badge bg-danger rounded-pill">{{ value }}</span>
+                                        {% else %}
+                                            <span class="badge bg-success rounded-pill">{{ value }}</span>
+                                        {% endif %}
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
     {% endif %}
+</div>
+
+<!-- Bootstrap 5 JS CDN (optional for interactive components) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
 
