@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Phishing Detector</title>
+</head>
+<body>
+  <h1>Phishing Detection Tool</h1>
+  <form method="post">
+    <textarea name="urls" rows="5" cols="50" placeholder="Enter URLs, comma-separated"></textarea><br>
+    <button type="submit">Scan</button>
+  </form>
+
+  {% for res in results %}
+    <h3>{{ res.url }}</h3>
+    <ul>
+      {% for key, value in res.indicators.items() %}
+        <li>{{ key }}: {{ value }}</li>
+      {% endfor %}
+      <li>Overall Assessment: {{ res.assessment }}</li>
+    </ul>
+  {% endfor %}
+</body>
+</html>
+
